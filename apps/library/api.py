@@ -1,0 +1,76 @@
+from django.shortcuts import get_object_or_404
+from ninja import Router
+from .models import Author, Book
+from .schemas import AuthorIn, AuthorOut, BookIn, BookOut
+
+router = Router()
+
+#authors
+
+@router.post("/authors", response={201: AuthorOut}, tags=["Authors"])
+def create_author(request, payload: AuthorIn):
+    author = Author.objects.create(**payload.dict())
+    return 201, author
+
+@router.get("/authors", response=list[AuthorOut], tags=["Authors"])
+def list_authors(request):
+    return Author.objects.all()
+
+@router.get("/authors/{author_id}", response=AuthorOut, tags=["Authors"])
+def get_author(request, author_id: int):
+    return get_object_or_404(Author, id=author_id)
+
+@router.put("/authors/{author_id}", response=AuthorOut, tags=["Authors"])
+def update_author(request, author_id: int, payload: AuthorIn):
+    author = get_object_or_404(Author, id=author_id)
+    for attr, value in payload.dict().items():
+        setattr(author, attr, value)
+    author.save()
+    return author
+
+@router.delete("/authors/{author_id}", response={204: None}, tags=["Authors"])
+def delete_author(request, author_id: int):
+    author = get_object_or_404(Author, id=author_id)
+    author.delete()
+    return 204, None
+
+#books
+
+@router.post("/books", response={201: BookOut}, tags=["Books"])
+def create_book(request, payload: BookIn):
+    author = get_object_or_404(Author, id=payload.author_id)
+    
+    data = payload.dict()
+    data.pop("author_id") 
+    
+    book = Book.objects.create(author=author, **data)
+    return 201, book
+
+@router.get("/books", response=list[BookOut], tags=["Books"])
+def list_books(request):
+    return Book.objects.select_related("author").all()
+
+@router.get("/books/{book_id}", response=BookOut, tags=["Books"])
+def get_book(request, book_id: int):
+    return get_object_or_404(Book.objects.select_related("author"), id=book_id)
+
+@router.put("/books/{book_id}", response=BookOut, tags=["Books"])
+def update_book(request, book_id: int, payload: BookIn):
+    book = get_object_or_404(Book, id=book_id)
+    author = get_object_or_404(Author, id=payload.author_id)
+    
+    data = payload.dict()
+    data.pop("author_id")
+    
+    for attr, value in data.items():
+        setattr(book, attr, value)
+    book.author = author
+    book.save()
+    
+    return book
+
+@router.delete("/books/{book_id}", response={204: None}, tags=["Books"])
+def delete_book(request, book_id: int):
+    book = get_object_or_404(Book, id=book_id)
+    book.delete()
+    return 204, None
