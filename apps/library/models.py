@@ -1,6 +1,14 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+class GenreChoices(models.TextChoices):
+    DETECTIVE = "detective", "Детектив"
+    ROMANCE = "romance", "Роман"
+    FANTASY = "fantasy", "Фантастика"
+    SCI_FI = "sci_fi", "Научная фантастика"
+    DRAMA = "drama", "Драма"
+    OTHER = "other", "Другое"
+
 class Author(models.Model):
     first_name = models.CharField(max_length=100, verbose_name="Имя")
     last_name = models.CharField(max_length=100, verbose_name="Фамилия")
@@ -25,7 +33,18 @@ class Book(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(5)],
         verbose_name="Рейтинг (1-5)"
     )
-    genre = models.CharField(max_length=100, verbose_name="Жанр")
+    genre = models.CharField(
+        max_length=50,
+        choices=GenreChoices.choices,
+        default=GenreChoices.OTHER,
+        verbose_name="Жанр"
+    )
+    cover = models.ImageField(
+        upload_to="covers/",
+        blank=True,
+        null=True,
+        verbose_name="Обложка"
+    )
     author = models.ForeignKey(
         Author,
         on_delete=models.CASCADE,

@@ -1,12 +1,12 @@
 from django.shortcuts import get_object_or_404
-from ninja import Router
+from ninja import Router, Query, File 
+from ninja.files import UploadedFile  
 from .models import Author, Book
-from .schemas import AuthorIn, AuthorOut, BookIn, BookOut
+from .schemas import AuthorIn, AuthorOut, BookIn, BookOut, BookFilterSchema
 
 router = Router()
 
 #authors
-
 @router.post("/authors", response={201: AuthorOut}, tags=["Authors"])
 def create_author(request, payload: AuthorIn):
     author = Author.objects.create(**payload.dict())
@@ -35,20 +35,19 @@ def delete_author(request, author_id: int):
     return 204, None
 
 #books
-
 @router.post("/books", response={201: BookOut}, tags=["Books"])
 def create_book(request, payload: BookIn):
     author = get_object_or_404(Author, id=payload.author_id)
-    
     data = payload.dict()
-    data.pop("author_id") 
-    
+    data.pop("author_id")
     book = Book.objects.create(author=author, **data)
     return 201, book
 
 @router.get("/books", response=list[BookOut], tags=["Books"])
-def list_books(request):
-    return Book.objects.select_related("author").all()
+def list_books(request, filters: BookFilterSchema = Query(...)):
+    books = Book.objects.select_related("author").all()
+    books = filters.filter(books)
+    return books
 
 @router.get("/books/{book_id}", response=BookOut, tags=["Books"])
 def get_book(request, book_id: int):
@@ -74,3 +73,14 @@ def delete_book(request, book_id: int):
     book = get_object_or_404(Book, id=book_id)
     book.delete()
     return 204, None
+
+@router.post("/books/{book_id}/cover", response=BookOut, tags=["Books"])
+def upload_book_cover(request, book_id: int, file: File[UploadedFile]):
+    book = get_object_or_404(Book, id=book_id)
+    
+    if book.cover:
+        book.cover.delete(save=False)
+        
+    book.cover = file
+    book.save()
+    return book
